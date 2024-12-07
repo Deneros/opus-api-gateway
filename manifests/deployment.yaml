@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: ghcr.io/deneros/api-gateway:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev"
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://eureka-server:8761/eureka/"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+      initContainers:
+        - name: wait-for-config-server
+          image: busybox
+          command: ['sh', '-c', 'until nc -z config-server 8888; do echo "Esperando al Config Server..."; sleep 5; done']
+        - name: wait-for-eureka-server
+          image: busybox
+          command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo "Esperando al Eureka Server..."; sleep 5; done']
